@@ -8,6 +8,7 @@ Written in C, for Windows XP and newer.
 <br /><br />
 ## Differences to the original
 * Open Source
+* 32 and 64 bit binary available
 * No OS/2 application support
 
 ## Building
