@@ -1,4 +1,5 @@
-Debug
-/*.opensdf
 /*.sdf
-Release
+/*.suo
+/*.user
+/*.opensdf
+build
