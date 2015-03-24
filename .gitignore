@@ -1,6 +1,6 @@
-/*.sdf
-/*.suo
-/*.user
-/*.opensdf
-build
-*.aps
+/msvc/*.sdf
+/msvc/*.suo
+/msvc/*.user
+/msvc/*.opensdf
+/src/*.aps
+/msvc/build

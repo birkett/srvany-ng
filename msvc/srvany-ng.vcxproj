@@ -19,13 +19,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\srvany-ng.c" />
+    <ClInclude Include="..\src\resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\resource.h" />
+    <ResourceCompile Include="..\src\srvany-ng.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="src\srvany-ng.rc" />
+    <ClCompile Include="..\src\srvany-ng.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4ED710DA-33FC-4955-B341-9E7CA99FC806}</ProjectGuid>
