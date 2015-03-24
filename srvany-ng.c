@@ -105,18 +105,20 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 		OutputDebugString(TEXT("AppParameters key not found. Non fatal.\n"));
 	}
 
-	TCHAR applicationEnvironment[MAX_DATA_LENGTH] = TEXT("");
-	if (RegQueryValueEx(openedKey, TEXT("AppParameters"), NULL, NULL, (LPBYTE)applicationEnvironment, &cbData) != ERROR_SUCCESS)
+	LPWCH applicationEnvironment = GetEnvironmentStrings();
+	if (RegQueryValueEx(openedKey, TEXT("AppEnvironment"), NULL, NULL, (LPBYTE)applicationEnvironment, &cbData) != ERROR_SUCCESS)
 	{
 		OutputDebugString(TEXT("AppEnvironment key not found. Non fatal.\n"));
 	}
 
 	TCHAR applicationDirectory[MAX_DATA_LENGTH] = TEXT("");
-	GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory);
-	if (RegQueryValueEx(openedKey, TEXT("AppParameters"), NULL, NULL, (LPBYTE)applicationDirectory, &cbData) != ERROR_SUCCESS)
+	GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory); //Default to the current dir when not specified in the registry
+	if (RegQueryValueEx(openedKey, TEXT("AppDirectory"), NULL, NULL, (LPBYTE)applicationDirectory, &cbData) != ERROR_SUCCESS)
 	{
 		OutputDebugString(TEXT("AppDirectory key not found. Non fatal.\n"));
 	}
+
+	SetCurrentDirectory(applicationDirectory); //Set to either the current, or value in the registry
 
 	STARTUPINFO startupInfo;
 	ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
@@ -126,7 +128,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 	startupInfo.cbReserved2 = 0;
 	startupInfo.lpReserved2 = NULL;
 
-	if (CreateProcess(NULL, applicationString, NULL, NULL, FALSE, CREATE_NO_WINDOW, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
+	if (CreateProcess(NULL, applicationString, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
 	{
 		ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
 		HANDLE hThread = CreateThread(NULL, 0, ServiceWorkerThread, NULL, 0, NULL);
