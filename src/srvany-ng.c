@@ -23,24 +23,38 @@
  */
 #include <Windows.h>
 
-#define MAX_DATA_LENGTH 8192
-#define MAX_KEY_LENGTH MAX_PATH
-#define SERVICE_NAME TEXT("srvany-ng")
+#define MAX_DATA_LENGTH 8192				//Max lenght of a registry value
+#define MAX_KEY_LENGTH	MAX_PATH			//Max length of a registry path
+#define SERVICE_NAME	TEXT("srvany-ng")	//Name to reference this service
 
-SERVICE_STATUS_HANDLE g_StatusHandle = NULL;
-HANDLE                g_ServiceStopEvent = INVALID_HANDLE_VALUE;
-PROCESS_INFORMATION   g_Process;
+SERVICE_STATUS_HANDLE	g_StatusHandle		= NULL;
+HANDLE					g_ServiceStopEvent	= INVALID_HANDLE_VALUE;
+PROCESS_INFORMATION		g_Process			= { 0 };
 
+
+/*
+ * Worker thread for the service. Currently serves no real purpse but to keep
+ *  the service started. 
+ *
+ * Eventually, this should check if the target process has exited, and stop
+ *  or restart the service accordingly.
+ */
 DWORD WINAPI ServiceWorkerThread(LPVOID lpParam)
 {
+	UNREFERENCED_PARAMETER(lpParam);
+
 	while (WaitForSingleObject(g_ServiceStopEvent, 0) != WAIT_OBJECT_0)
 	{
 		Sleep(1000);
 	}
 
 	return ERROR_SUCCESS;
-}
+}//end ServiceWorkerThread()
 
+
+/*
+ * Set the current state of the service.
+ */
 void ServiceSetState(DWORD acceptedControls, DWORD newState, DWORD exitCode)
 {
 	SERVICE_STATUS serviceStatus;
@@ -57,15 +71,19 @@ void ServiceSetState(DWORD acceptedControls, DWORD newState, DWORD exitCode)
 	{
 		OutputDebugString(TEXT("SetServiceStatus failed\n"));
 	}
-}
+}//end ServiceSetState()
 
+
+/*
+ * Handle service control requests, like STOP, PAUSE and CONTINUE.
+ */
 void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
 {
 	switch (CtrlCode)
 	{
 	case SERVICE_CONTROL_STOP:
-		SetEvent(g_ServiceStopEvent); //Kill the worker thread
-		TerminateProcess(g_Process.hProcess, 0); //Kill the target process
+		SetEvent(g_ServiceStopEvent); //Kill the worker thread.
+		TerminateProcess(g_Process.hProcess, 0); //Kill the target process.
 		ServiceSetState(0, SERVICE_STOPPED, 0);
 		break;
 
@@ -80,11 +98,22 @@ void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
 	default:
 		break;
 	}
-}
+}//end ServiceCtrlHandler()
 
+
+/*
+ * Main entry point for the service. Acts in a similar fasion to main().
+ *
+ * NOTE: argv[0] will always contain the service name when invoked by the SCM.
+ */
 void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 {
+	UNREFERENCED_PARAMETER(argc);
+
+//Pause on start for Debug builds. Gives some time to manually attach a debugger.
+#ifdef _DEBUG
 	Sleep(10000);
+#endif
 
 	g_StatusHandle = RegisterServiceCtrlHandler(SERVICE_NAME, ServiceCtrlHandler);
 
@@ -104,6 +133,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 	HKEY openedKey;
 	DWORD cbData = MAX_DATA_LENGTH;
 
+	//Open the registry key for this service.
 	TCHAR keyPath[MAX_KEY_LENGTH];
 	wsprintf(keyPath, TEXT("%s%s%s"), TEXT("SYSTEM\\CurrentControlSet\\Services\\"), argv[0], TEXT("\\Parameters\\"));
 
@@ -114,6 +144,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 		return;
 	}
 
+	//Get the target application path from the Parameters key.
 	TCHAR applicationString[MAX_DATA_LENGTH] = TEXT("");
 	if (RegQueryValueEx(openedKey, TEXT("Application"), NULL, NULL, (LPBYTE)applicationString, &cbData) != ERROR_SUCCESS)
 	{
@@ -122,26 +153,28 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 		return;
 	}
 
+	//Get the target application parameters from the Parameters key.
 	TCHAR applicationParameters[MAX_DATA_LENGTH] = TEXT("");
 	if (RegQueryValueEx(openedKey, TEXT("AppParameters"), NULL, NULL, (LPBYTE)applicationParameters, &cbData) != ERROR_SUCCESS)
 	{
 		OutputDebugString(TEXT("AppParameters key not found. Non fatal.\n"));
 	}
 
-	LPWCH applicationEnvironment = GetEnvironmentStrings();
+	//Get the target application environment from the Parameters key.
+	LPWCH applicationEnvironment = GetEnvironmentStrings(); //Default to the current environment.
 	if (RegQueryValueEx(openedKey, TEXT("AppEnvironment"), NULL, NULL, (LPBYTE)applicationEnvironment, &cbData) != ERROR_SUCCESS)
 	{
 		OutputDebugString(TEXT("AppEnvironment key not found. Non fatal.\n"));
 	}
 
+	//Get the target application directory from the Parameters key.
 	TCHAR applicationDirectory[MAX_DATA_LENGTH] = TEXT("");
-	GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory); //Default to the current dir when not specified in the registry
+	GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory); //Default to the current dir when not specified in the registry.
 	if (RegQueryValueEx(openedKey, TEXT("AppDirectory"), NULL, NULL, (LPBYTE)applicationDirectory, &cbData) != ERROR_SUCCESS)
 	{
 		OutputDebugString(TEXT("AppDirectory key not found. Non fatal.\n"));
 	}
-
-	SetCurrentDirectory(applicationDirectory); //Set to either the current, or value in the registry
+	SetCurrentDirectory(applicationDirectory); //Set to either the current, or value in the registry.
 
 	STARTUPINFO startupInfo;
 	ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
@@ -151,20 +184,29 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 	startupInfo.cbReserved2 = 0;
 	startupInfo.lpReserved2 = NULL;
 
+	//Try to launch the target application.
 	if (CreateProcess(NULL, applicationString, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
 	{
 		ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
 		HANDLE hThread = CreateThread(NULL, 0, ServiceWorkerThread, NULL, 0, NULL);
-		WaitForSingleObject(hThread, INFINITE); //Wait here for a stop signal
+		WaitForSingleObject(hThread, INFINITE); //Wait here for a stop signal.
 		CloseHandle(g_ServiceStopEvent);
 	}
 
 	ServiceSetState(0, SERVICE_STOPPED, 0);
-}
+}//end ServiceMain()
 
 
+/*
+ * Main entry point for the application.
+ *
+ * NOTE: The SCM calls this, just like any other application.
+ */
 int main(int argc, TCHAR *argv[])
 {
+	UNREFERENCED_PARAMETER(argc);
+	UNREFERENCED_PARAMETER(argv);
+
 	SERVICE_TABLE_ENTRY ServiceTable[] =
 	{
 		{ SERVICE_NAME, (LPSERVICE_MAIN_FUNCTION)ServiceMain },
@@ -177,4 +219,4 @@ int main(int argc, TCHAR *argv[])
 	}
 
 	return 0;
-}
+}//end main()
