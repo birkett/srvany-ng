@@ -33,11 +33,8 @@ PROCESS_INFORMATION   g_Process          = { 0 };
 
 
 /*
- * Worker thread for the service. Currently serves no real purpse but to keep
- *  the service started.
- *
- * Eventually, this should check if the target process has exited, and stop
- *  or restart the service accordingly.
+ * Worker thread for the service. Keeps the service alive until stopped,
+ *  or the target application exits.
  */
 DWORD WINAPI ServiceWorkerThread(LPVOID lpParam)
 {
@@ -45,6 +42,12 @@ DWORD WINAPI ServiceWorkerThread(LPVOID lpParam)
 
     while (WaitForSingleObject(g_ServiceStopEvent, 0) != WAIT_OBJECT_0)
     {
+        //Check if the target application has exited.
+        if (WaitForSingleObject(g_Process.hProcess, 0) == WAIT_OBJECT_0)
+        {
+            //...If it has, end this thread, resulting in a service stop.
+            SetEvent(g_ServiceStopEvent);
+        }
         Sleep(1000);
     }
 
