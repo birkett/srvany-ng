@@ -207,8 +207,15 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     //Append parameters to the target command string.
     wsprintf(appStringWithParams, TEXT("%s %s"), applicationString, applicationParameters);
 
+    DWORD dwFlags = CREATE_NO_WINDOW;
+
+//Need to specify this for Unicode envars, not needed for MBCS builds.
+#ifdef UNICODE
+    dwFlags |= CREATE_UNICODE_ENVIRONMENT;
+#endif
+
     //Try to launch the target application.
-    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
+    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
     {
         ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
         HANDLE hThread = CreateThread(NULL, 0, ServiceWorkerThread, NULL, 0, NULL);
@@ -218,9 +225,9 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
             return;
         }
         WaitForSingleObject(hThread, INFINITE); //Wait here for a stop signal.
-        CloseHandle(g_ServiceStopEvent);
     }
 
+    CloseHandle(g_ServiceStopEvent);
     ServiceSetState(0, SERVICE_STOPPED, 0);
 }//end ServiceMain()
 
