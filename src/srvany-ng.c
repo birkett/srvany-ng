@@ -23,7 +23,7 @@
  */
 #include <Windows.h>
 
-#define MAX_DATA_LENGTH 8192			  //Max lenght of a registry value
+#define MAX_DATA_LENGTH 8192              //Max length of a registry value
 #define MAX_KEY_LENGTH  MAX_PATH          //Max length of a registry path
 #define SERVICE_NAME    TEXT("srvany-ng") //Name to reference this service
 
@@ -115,15 +115,16 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     Sleep(10000);
 #endif
 
-    TCHAR* keyPath                = (TCHAR*)calloc(MAX_KEY_LENGTH , sizeof(TCHAR));
-    TCHAR* applicationString      = (TCHAR*)calloc(MAX_DATA_LENGTH, sizeof(TCHAR));
-    TCHAR* applicationDirectory   = (TCHAR*)calloc(MAX_DATA_LENGTH, sizeof(TCHAR));
-    TCHAR* applicationParameters  = (TCHAR*)calloc(MAX_DATA_LENGTH, sizeof(TCHAR));
-    TCHAR* applicationEnvironment = (TCHAR*)calloc(MAX_DATA_LENGTH, sizeof(TCHAR));
+    TCHAR* keyPath                = (TCHAR*)calloc(MAX_KEY_LENGTH     , sizeof(TCHAR));
+    TCHAR* applicationString      = (TCHAR*)calloc(MAX_DATA_LENGTH    , sizeof(TCHAR));
+    TCHAR* applicationDirectory   = (TCHAR*)calloc(MAX_DATA_LENGTH    , sizeof(TCHAR));
+    TCHAR* applicationParameters  = (TCHAR*)calloc(MAX_DATA_LENGTH    , sizeof(TCHAR));
+    TCHAR* applicationEnvironment = (TCHAR*)calloc(MAX_DATA_LENGTH    , sizeof(TCHAR));
+    TCHAR* appStringWithParams    = (TCHAR*)calloc(MAX_DATA_LENGTH * 2, sizeof(TCHAR));
     HKEY   openedKey;
     DWORD  cbData;
 
-    if (keyPath == NULL || applicationString == NULL || applicationDirectory == NULL || applicationParameters == NULL || applicationEnvironment == NULL)
+    if (keyPath == NULL || applicationString == NULL || applicationDirectory == NULL || applicationParameters == NULL || applicationEnvironment == NULL || appStringWithParams == NULL)
     {
         OutputDebugString(TEXT("malloc failed\n"));
         ServiceSetState(0, SERVICE_STOPPED, GetLastError());
@@ -148,7 +149,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     }
 
     //Open the registry key for this service.
-    wsprintf(keyPath, TEXT("%s%s%s\0"), TEXT("SYSTEM\\CurrentControlSet\\Services\\"), argv[0], TEXT("\\Parameters\\"));
+    wsprintf(keyPath, TEXT("%s%s%s"), TEXT("SYSTEM\\CurrentControlSet\\Services\\"), argv[0], TEXT("\\Parameters\\"));
 
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, keyPath, 0, KEY_READ, &openedKey) != ERROR_SUCCESS)
     {
@@ -184,9 +185,13 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     cbData = MAX_DATA_LENGTH;
     if (RegQueryValueEx(openedKey, TEXT("AppDirectory"), NULL, NULL, (LPBYTE)applicationDirectory, &cbData) != ERROR_SUCCESS)
     {
-        GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory); //Default to the current dir when not specified in the registry.
+        //Default to the current dir when not specified in the registry.
+        applicationDirectory = NULL; //Make sure RegQueryEx() didnt write garbage.
+        if (GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory) != ERROR_SUCCESS)
+        {
+            applicationDirectory = NULL; //All attempts failed, let CreateProcess() handle it.
+        }
     }
-    SetCurrentDirectory(applicationDirectory); //Set to either the current, or value in the registry.
 
     STARTUPINFO startupInfo;
     ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
@@ -196,8 +201,11 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     startupInfo.cbReserved2 = 0;
     startupInfo.lpReserved2 = NULL;
 
+    //Append parameters to the target command string.
+    wsprintf(appStringWithParams, TEXT("%s %s"), applicationString, applicationParameters);
+
     //Try to launch the target application.
-    if (CreateProcess(NULL, applicationString, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
+    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
     {
         ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
         HANDLE hThread = CreateThread(NULL, 0, ServiceWorkerThread, NULL, 0, NULL);
