@@ -3,4 +3,5 @@
 /msvc/*.user
 /msvc/*.opensdf
 /src/*.aps
+/src/gitversion.h
 /msvc/build
