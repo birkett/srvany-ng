@@ -23,19 +23,26 @@
  */
 #include <Windows.h>
 #include <stdio.h>
+#include <time.h>
 #include <tchar.h> //For _tmain().
 
 #define MAX_DATA_LENGTH 8192
 
-//Replace the calls to printf for MBCS and UNICODE builds.
+//Replace the calls to printf and ctime for MBCS and UNICODE builds.
 #ifdef UNICODE
     #include <wchar.h> //For wprintf().
     #define printf_w wprintf
+    #define wctime _wctime_s
 #else
     #define printf_w printf
+    #define wctime ctime_s
 #endif
 
 
+/*
+ * Wrapper to send output to the console and output file with one call.
+ *  If fpFile is NULL, only output to the console.
+ */
 void writeOutput(FILE* fpFile, void* szString)
 {
     printf_w(TEXT("%s\n"), szString);
@@ -56,26 +63,42 @@ int _tmain(int argc, TCHAR *argv[])
 {
     TCHAR* currentDirectory   = (TCHAR*)calloc(MAX_DATA_LENGTH, sizeof(TCHAR));
     TCHAR* currentEnvironment = (TCHAR*)calloc(MAX_DATA_LENGTH, sizeof(TCHAR));
+    TCHAR* timeBuffer         = (TCHAR*)calloc(      26       , sizeof(TCHAR));
     FILE*  outputFile         = NULL;
+    time_t timeData;
 
-    if (currentDirectory == NULL || currentEnvironment == NULL)
+    if (currentDirectory == NULL || currentEnvironment == NULL || timeBuffer == NULL)
     {
-        writeOutput(NULL, TEXT("calloc() failed\n"));
+        writeOutput(NULL, TEXT("calloc() failed"));
         return ERROR_OUTOFMEMORY;
     }
 
     if (fopen_s(&outputFile, "output.txt", "w") != ERROR_SUCCESS)
     {
-        writeOutput(NULL, TEXT("fopen() failed\n"));
+        writeOutput(NULL, TEXT("fopen() failed"));
         return ERROR_OPEN_FAILED;
     }
+
+    time(&timeData);
+    
+    if (wctime(timeBuffer, 26, &timeData) != ERROR_SUCCESS)
+    {
+        writeOutput(NULL, TEXT("ctime() failed"));
+        return ERROR_INVALID_PARAMETER;
+    }
+
+    writeOutput(outputFile, TEXT("*** Starting test"));
+    writeOutput(outputFile, timeBuffer);
 
     GetCurrentDirectory(MAX_DATA_LENGTH, currentDirectory);
     currentEnvironment = GetEnvironmentStrings();
 
+    writeOutput(outputFile, TEXT("\n\n*** Current directory:"));
     writeOutput(outputFile, currentDirectory);
 
     TCHAR* envarPointer = currentEnvironment;
+
+    writeOutput(outputFile, TEXT("\n\n*** Current environment:"));
 
     while (*envarPointer)
     {
@@ -83,11 +106,14 @@ int _tmain(int argc, TCHAR *argv[])
         envarPointer += lstrlen(envarPointer) + 1;
     }
 
+    writeOutput(outputFile, TEXT("\n\n*** Argv[] contents:"));
+
     for (int i = 0; i < argc; i++)
     {
         writeOutput(outputFile, argv[i]);
     }
 
+    writeOutput(outputFile, TEXT("\n\n***End test"));
     fclose(outputFile);
     return ERROR_SUCCESS;
 }//end main()
