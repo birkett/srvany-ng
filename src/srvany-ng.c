@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 #include <Windows.h>
+#include <tchar.h> //For _tmain().
 
 #define MAX_DATA_LENGTH 8192              //Max length of a registry value
 #define MAX_KEY_LENGTH  MAX_PATH          //Max length of a registry path
@@ -72,7 +73,7 @@ void ServiceSetState(DWORD acceptedControls, DWORD newState, DWORD exitCode)
 
     if (SetServiceStatus(g_StatusHandle, &serviceStatus) == FALSE)
     {
-        OutputDebugString(TEXT("SetServiceStatus failed\n"));
+        OutputDebugString(TEXT("SetServiceStatus() failed\n"));
     }
 }//end ServiceSetState()
 
@@ -129,7 +130,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 
     if (keyPath == NULL || applicationString == NULL || applicationDirectory == NULL || applicationParameters == NULL || applicationEnvironment == NULL || appStringWithParams == NULL)
     {
-        OutputDebugString(TEXT("malloc failed\n"));
+        OutputDebugString(TEXT("calloc() failed\n"));
         ServiceSetState(0, SERVICE_STOPPED, GetLastError());
         return;
     }
@@ -138,7 +139,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 
     if (g_StatusHandle == NULL)
     {
-        OutputDebugString(TEXT("RegisterServiceCtrlHandler failed\n"));
+        OutputDebugString(TEXT("RegisterServiceCtrlHandler() failed\n"));
         ServiceSetState(0, SERVICE_STOPPED, GetLastError());
         return;
     }
@@ -146,7 +147,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     g_ServiceStopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (g_ServiceStopEvent == NULL)
     {
-        OutputDebugString(TEXT("CreateEvent failed\n"));
+        OutputDebugString(TEXT("CreateEvent() failed\n"));
         ServiceSetState(0, SERVICE_STOPPED, GetLastError());
         return;
     }
@@ -237,7 +238,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
  *
  * NOTE: The SCM calls this, just like any other application.
  */
-int main(int argc, TCHAR *argv[])
+int _tmain(int argc, TCHAR *argv[])
 {
     UNREFERENCED_PARAMETER(argc);
     UNREFERENCED_PARAMETER(argv);
