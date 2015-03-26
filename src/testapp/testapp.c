@@ -35,6 +35,18 @@
     #define printf_w printf
 #endif
 
+
+void writeOutput(FILE* fpFile, void* szString)
+{
+    printf_w(TEXT("%s\n"), szString);
+    if (fpFile != NULL)
+    {
+        fwrite(szString, sizeof(TCHAR), lstrlen(szString), fpFile);
+        fwrite("\n", sizeof(char), 1, fpFile);
+    }
+}//end writeOutput()
+
+
 /*
  * Simple target application to aid testing. 
  *  Prints current directory, environment and parameters to check if srvany-ng
@@ -44,44 +56,38 @@ int _tmain(int argc, TCHAR *argv[])
 {
     TCHAR* currentDirectory   = (TCHAR*)calloc(MAX_DATA_LENGTH, sizeof(TCHAR));
     TCHAR* currentEnvironment = (TCHAR*)calloc(MAX_DATA_LENGTH, sizeof(TCHAR));
+    FILE*  outputFile         = NULL;
 
     if (currentDirectory == NULL || currentEnvironment == NULL)
     {
-        printf_w(TEXT("calloc() failed\n"));
+        writeOutput(NULL, TEXT("calloc() failed\n"));
         return ERROR_OUTOFMEMORY;
     }
 
-    FILE* outputFile = fopen("output.txt", "w");
-
-    if (outputFile == NULL)
+    if (fopen_s(&outputFile, "output.txt", "w") != ERROR_SUCCESS)
     {
-        printf_w(TEXT("fopen() failed\n"));
+        writeOutput(NULL, TEXT("fopen() failed\n"));
         return ERROR_OPEN_FAILED;
     }
 
     GetCurrentDirectory(MAX_DATA_LENGTH, currentDirectory);
     currentEnvironment = GetEnvironmentStrings();
 
-    printf_w(TEXT("%s\n"), currentDirectory);
-    fwrite(currentDirectory, sizeof(TCHAR), lstrlen(currentDirectory), outputFile);
-    fwrite("\n", sizeof(char), 1, outputFile);
+    writeOutput(outputFile, currentDirectory);
 
     TCHAR* envarPointer = currentEnvironment;
 
     while (*envarPointer)
     {
-        printf_w(TEXT("%s\n"), envarPointer);
-        fwrite(envarPointer, sizeof(TCHAR), lstrlen(envarPointer), outputFile);
-        fwrite("\n", sizeof(char), 1, outputFile);
+        writeOutput(outputFile, envarPointer);
         envarPointer += lstrlen(envarPointer) + 1;
     }
 
     for (int i = 0; i < argc; i++)
     {
-        printf_w(TEXT("%s\n"), argv[i]);
-        fwrite(argv[i], sizeof(TCHAR), lstrlen(argv[i]), outputFile);
-        fwrite("\n", sizeof(char), 1, outputFile);
+        writeOutput(outputFile, argv[i]);
     }
 
+    fclose(outputFile);
     return ERROR_SUCCESS;
 }//end main()
