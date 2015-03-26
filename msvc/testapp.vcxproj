@@ -161,6 +161,9 @@
   <ItemGroup>
     <ClCompile Include="..\src\testapp\testapp.c" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\tests\testscript.ps1" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
