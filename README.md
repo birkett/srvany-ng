@@ -1,4 +1,4 @@
-#srvany-ng: Run any Windows application as a Service
+# srvany-ng: Run any Windows application as a Service
 A drop in, compatible, replacement for the useful "srvany.exe", found in the Windows Server Resource Kit.<br />
 Written in C, for Windows XP and newer.
 
@@ -19,27 +19,25 @@ Solution is known to build with Visual Studio 2013, no additional dependencies a
 ## Installing
 Place srvany-ng in an accessible folder on your system.
 Install it as a service from an Elevated (Administrator) Command Prompt:
-```shell
+```winbatch
 sc create "MyServiceName" start= auto binPath = "C:\Path\To\srvany-ng.exe"
 sc description MyServiceName "My services description"
 ```
-Note the spaces between start=, binPath= and their parameters. This is intended.
+Note the spaces between `start=`, `binPath=` and their parameters. This is intended.
 
-Now, open the Registry editor (regedit.exe), and browse to:
-```
-HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\MyServiceName
-```
-Create a new Key named "Parameters".
+Now, open the Registry editor (`regedit.exe`), and browse to:
+`HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\MyServiceName`
+
+Create a new Key named "Parameters".  
 In the parameters key, create a new String value named "Application". The value should be the file path to the application you wish to run as a service.
 
-####Optional Parameters
-"AppDirectory" | String value | The starting directory for your application. Usually the same as the folder its executable is in.
-<br />
-"AppParameters" | String value | Command line arguments to pass to your application on startup.
-<br />
-"AppEnvironment" | Multi-String value | Environment variables to set for your application.
-<br /><br />
+#### Optional Parameters
+| Value name     | Value type         | Description                                                                                       |
+| ---------------| ------------------ | ------------------------------------------------------------------------------------------------- |
+| AppDirectory   | String value       | The starting directory for your application. Usually the same as the folder its executable is in. |
+| AppParameters  | String value       | Command line arguments to pass to your application on startup.                                    |
+| AppEnvironment | Multi-String value | Environment variables to set for your application.                                                |
 
-##Further Reading
+## Further Reading
 Microsoft support article describing the use of the original srvany.exe: https://support.microsoft.com/en-us/kb/137890
 <br />
