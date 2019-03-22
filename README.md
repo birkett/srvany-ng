@@ -20,7 +20,7 @@ Solution is known to build with Visual Studio 2013, no additional dependencies a
 Place srvany-ng in an accessible folder on your system.
 Install it as a service from an Elevated (Administrator) Command Prompt:
 ```winbatch
-sc create "MyServiceName" start= auto binPath = "C:\Path\To\srvany-ng.exe"
+sc create "MyServiceName" start= auto binPath= "C:\Path\To\srvany-ng.exe"
 sc description MyServiceName "My services description"
 ```
 Note the spaces between `start=`, `binPath=` and their parameters. This is intended.
