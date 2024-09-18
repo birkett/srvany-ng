@@ -1,7 +1,9 @@
-/msvc/*.sdf
-/msvc/*.suo
-/msvc/*.user
-/msvc/*.opensdf
-/src/*.aps
-/src/gitversion.h
-/msvc/build
+.idea/
+msvc/*.sdf
+msvc/*.suo
+msvc/*.user
+msvc/*.opensdf
+msvc/.vs/
+msvc/build/
+src/*.aps
+src/gitversion.h

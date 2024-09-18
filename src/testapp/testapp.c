@@ -43,7 +43,7 @@
  * Wrapper to send output to the console and output file with one call.
  *  If fpFile is NULL, only output to the console.
  */
-void writeOutput(FILE* fpFile, void* szString)
+void writeOutput(FILE* fpFile, TCHAR* szString)
 {
     printf_w(TEXT("%s\n"), szString);
     if (fpFile != NULL)
