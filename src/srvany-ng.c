@@ -34,29 +34,6 @@ PROCESS_INFORMATION   g_Process          = { 0 };
 
 
 /*
- * Worker thread for the service. Keeps the service alive until stopped,
- *  or the target application exits.
- */
-DWORD WINAPI ServiceWorkerThread(LPVOID lpParam)
-{
-    UNREFERENCED_PARAMETER(lpParam);
-
-    while (WaitForSingleObject(g_ServiceStopEvent, 0) != WAIT_OBJECT_0)
-    {
-        //Check if the target application has exited.
-        if (WaitForSingleObject(g_Process.hProcess, 0) == WAIT_OBJECT_0)
-        {
-            //...If it has, end this thread, resulting in a service stop.
-            SetEvent(g_ServiceStopEvent);
-        }
-        Sleep(1000);
-    }
-
-    return ERROR_SUCCESS;
-}//end ServiceWorkerThread()
-
-
-/*
  * Set the current state of the service.
  */
 void ServiceSetState(DWORD acceptedControls, DWORD newState, DWORD exitCode)
@@ -86,7 +63,7 @@ void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
     switch (CtrlCode)
     {
     case SERVICE_CONTROL_STOP:
-        SetEvent(g_ServiceStopEvent); //Kill the worker thread.
+        SetEvent(g_ServiceStopEvent); //Signal service stop
         TerminateProcess(g_Process.hProcess, 0); //Kill the target process.
         ServiceSetState(0, SERVICE_STOPPED, 0);
         break;
@@ -219,13 +196,18 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
     {
         ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
-        HANDLE hThread = CreateThread(NULL, 0, ServiceWorkerThread, NULL, 0, NULL);
-        if (hThread == NULL)
+
+        // Keeps the service alive until stopped, or the target application exits.
+        while (WaitForSingleObject(g_ServiceStopEvent, 0) != WAIT_OBJECT_0)
         {
-            ServiceSetState(0, SERVICE_STOPPED, GetLastError());
-            return;
+            //Check if the target application has exited.
+            if (WaitForSingleObject(g_Process.hProcess, 0) == WAIT_OBJECT_0)
+            {
+                //...If it has, end this thread, resulting in a service stop.
+                SetEvent(g_ServiceStopEvent);
+            }
+            Sleep(1000);
         }
-        WaitForSingleObject(hThread, INFINITE); //Wait here for a stop signal.
     }
 
     CloseHandle(g_ServiceStopEvent);
