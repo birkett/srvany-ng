@@ -167,8 +167,8 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     if (RegQueryValueEx(openedKey, TEXT("AppDirectory"), NULL, NULL, (LPBYTE)applicationDirectory, &cbData) != ERROR_SUCCESS)
     {
         //Default to the current dir when not specified in the registry.
-        applicationDirectory = NULL; //Make sure RegQueryEx() didnt write garbage.
-        if (GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory) != ERROR_SUCCESS)
+        ZeroMemory(applicationDirectory, MAX_DATA_LENGTH * sizeof(TCHAR)); //Make sure RegQueryEx() didnt write garbage.
+        if (GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory) == 0)
         {
             applicationDirectory = NULL; //All attempts failed, let CreateProcess() handle it.
         }
