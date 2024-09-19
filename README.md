@@ -11,6 +11,7 @@ Written in C, for Windows XP and newer.
 * 32 and 64 bit binary available
 * No OS/2 application support
 * Service will stop if the launched application exits
+* Added optional configuration to automatically restart the target application on exit
 
 ## Building
 Solution is known to build with Visual Studio 2022, no additional dependencies are needed. The project uses the "v141_xp" toolset to ensure XP / 2003 support, and links to the MSVCRT statically.
