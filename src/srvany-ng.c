@@ -197,16 +197,12 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     {
         ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
 
-        // Keeps the service alive until stopped, or the target application exits.
-        while (WaitForSingleObject(g_ServiceStopEvent, 0) != WAIT_OBJECT_0)
-        {
-            //Check if the target application has exited.
-            if (WaitForSingleObject(g_Process.hProcess, 0) == WAIT_OBJECT_0)
-            {
-                //...If it has, end this thread, resulting in a service stop.
-                SetEvent(g_ServiceStopEvent);
-            }
-            Sleep(1000);
+        // Wait until the service have stopped, or the target application exits.
+        HANDLE handles[] = { g_ServiceStopEvent , g_Process.hProcess };
+        DWORD ret = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+        if (ret == WAIT_OBJECT_0 + 1) { // g_Process.hProcess had index=1 in handles array
+            // Signal stop-event if the target application has exited.
+            SetEvent(g_ServiceStopEvent);
         }
     }
 
