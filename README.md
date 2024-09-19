@@ -33,10 +33,11 @@ In the parameters key, create a new String value named "Application". The value 
 
 #### Optional Parameters
 | Value name     | Value type         | Description                                                                                       |
-| ---------------| ------------------ | ------------------------------------------------------------------------------------------------- |
+|----------------|--------------------|---------------------------------------------------------------------------------------------------|
 | AppDirectory   | String value       | The starting directory for your application. Usually the same as the folder its executable is in. |
 | AppParameters  | String value       | Command line arguments to pass to your application on startup.                                    |
 | AppEnvironment | Multi-String value | Environment variables to set for your application.                                                |
+| RestartOnExit  | DWORD value        | If set to 1, and the application exits, srvany-ng will automatically restart it.                  |
 
 ## Further Reading
 Microsoft support article describing the use of the original srvany.exe: https://support.microsoft.com/en-us/kb/137890

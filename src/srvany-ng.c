@@ -28,6 +28,10 @@
 #define MAX_KEY_LENGTH  MAX_PATH          //Max length of a registry path
 #define SERVICE_NAME    TEXT("srvany-ng") //Name to reference this service
 
+#define EXIT_REASON_STOP_EVENT 0
+#define EXIT_REASON_APPLICATION_EXITED 1
+#define EXIT_REASON_FAILED_TO_SPAWN 1
+
 SERVICE_STATUS_HANDLE g_StatusHandle     = NULL;
 HANDLE                g_ServiceStopEvent = INVALID_HANDLE_VALUE;
 PROCESS_INFORMATION   g_Process          = { 0 };
@@ -36,7 +40,7 @@ PROCESS_INFORMATION   g_Process          = { 0 };
 /*
  * Set the current state of the service.
  */
-void ServiceSetState(DWORD acceptedControls, DWORD newState, DWORD exitCode)
+static void ServiceSetState(DWORD acceptedControls, DWORD newState, DWORD exitCode)
 {
     SERVICE_STATUS serviceStatus;
     ZeroMemory(&serviceStatus, sizeof(SERVICE_STATUS));
@@ -58,7 +62,7 @@ void ServiceSetState(DWORD acceptedControls, DWORD newState, DWORD exitCode)
 /*
  * Handle service control requests, like STOP, PAUSE and CONTINUE.
  */
-void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
+static void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
 {
     switch (CtrlCode)
     {
@@ -82,12 +86,55 @@ void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
 }//end ServiceCtrlHandler()
 
 
+/**
+ * Create the child process, and return a value indicating why we are exiting.
+ * We may re-spawn the process if we are set to restart on exit.
+ */
+static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationEnvironment, TCHAR* applicationDirectory)
+{
+    STARTUPINFO startupInfo;
+    ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
+    startupInfo.cb = sizeof(STARTUPINFO);
+    startupInfo.wShowWindow = 0;
+    startupInfo.lpReserved = NULL;
+    startupInfo.cbReserved2 = 0;
+    startupInfo.lpReserved2 = NULL;
+
+    DWORD dwFlags = CREATE_NO_WINDOW;
+
+    //Need to specify this for Unicode envars, not needed for MBCS builds.
+#ifdef UNICODE
+    dwFlags |= CREATE_UNICODE_ENVIRONMENT;
+#endif
+
+    //Try to launch the target application.
+    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
+    {
+        ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
+
+        //Wait until the service has stopped, or the target application exits.
+        HANDLE handles[2] = { NULL, NULL };
+        handles[0] = g_ServiceStopEvent;
+        handles[1] = g_Process.hProcess;
+
+        DWORD ret = WaitForMultipleObjects(sizeof(handles) / sizeof(handles[0]), handles, FALSE, INFINITE);
+        if (ret == WAIT_OBJECT_0 + 1) //g_Process.hProcess had index=1 in handles array
+        {
+            return EXIT_REASON_APPLICATION_EXITED;
+        }
+
+        return EXIT_REASON_STOP_EVENT;
+    }
+
+    return EXIT_REASON_STOP_EVENT;
+} //end SpawnChildProcess()
+
 /*
  * Main entry point for the service. Acts in a similar fasion to main().
  *
  * NOTE: argv[0] will always contain the service name when invoked by the SCM.
  */
-void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
+static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 {
     UNREFERENCED_PARAMETER(argc);
 
@@ -102,6 +149,7 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     TCHAR* applicationParameters  = (TCHAR*)calloc(MAX_DATA_LENGTH    , sizeof(TCHAR));
     TCHAR* applicationEnvironment = (TCHAR*)calloc(MAX_DATA_LENGTH    , sizeof(TCHAR));
     TCHAR* appStringWithParams    = (TCHAR*)calloc(MAX_DATA_LENGTH * 2, sizeof(TCHAR));
+    DWORD  restartOnExit = 0;
     HKEY   openedKey;
     DWORD  cbData;
 
@@ -174,38 +222,23 @@ void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
         }
     }
 
-    STARTUPINFO startupInfo;
-    ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
-    startupInfo.cb = sizeof(STARTUPINFO);
-    startupInfo.wShowWindow = 0;
-    startupInfo.lpReserved = NULL;
-    startupInfo.cbReserved2 = 0;
-    startupInfo.lpReserved2 = NULL;
+    //Check if we should restart on exit from the Parameters key.
+    cbData = sizeof(restartOnExit);
+    if (RegQueryValueEx(openedKey, TEXT("RestartOnExit"), NULL, NULL, (LPBYTE)&restartOnExit, &cbData) != ERROR_SUCCESS)
+    {
+        restartOnExit = 0;
+    }
 
     //Append parameters to the target command string.
     wsprintf(appStringWithParams, TEXT("%s %s"), applicationString, applicationParameters);
 
-    DWORD dwFlags = CREATE_NO_WINDOW;
+    DWORD exitReason = SpawnChildProcess(appStringWithParams, applicationEnvironment, applicationDirectory);
 
-//Need to specify this for Unicode envars, not needed for MBCS builds.
-#ifdef UNICODE
-    dwFlags |= CREATE_UNICODE_ENVIRONMENT;
-#endif
-
-    //Try to launch the target application.
-    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
+    if (restartOnExit == 1)
     {
-        ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
-
-        // Wait until the service has stopped, or the target application exits.
-        HANDLE handles[2] = { NULL, NULL };
-        handles[0] = g_ServiceStopEvent;
-        handles[1] = g_Process.hProcess;
-
-        DWORD ret = WaitForMultipleObjects(sizeof(handles) / sizeof(handles[0]), handles, FALSE, INFINITE);
-        if (ret == WAIT_OBJECT_0 + 1) { // g_Process.hProcess had index=1 in handles array
-            // Signal stop-event if the target application has exited.
-            SetEvent(g_ServiceStopEvent);
+        while (exitReason == EXIT_REASON_APPLICATION_EXITED) {
+            Sleep(1000);
+            exitReason = SpawnChildProcess(appStringWithParams, applicationEnvironment, applicationDirectory);
         }
     }
 
