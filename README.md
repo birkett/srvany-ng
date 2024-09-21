@@ -9,6 +9,7 @@ Written in C, for Windows XP and newer.
 ## Differences to the original
 * Open Source
 * 32 and 64 bit binary available
+* Unicode (default) and Multibyte Character Set (MBCS) binaries available
 * No OS/2 application support
 * Service will stop if the launched application exits
 * Added optional configuration to automatically restart the target application on exit
