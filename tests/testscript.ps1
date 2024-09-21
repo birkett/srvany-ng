@@ -36,8 +36,8 @@ If (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 # Binary paths.
-$binaryPath = $PSScriptRoot + "\..\" + "msvc\build\bin\srvany-ng\Debug_x64\srvany-ng_du64.exe"
-$testAppPath = $PSScriptRoot + "\..\" + "msvc\build\bin\testapp\Debug_x64\testapp_du64.exe"
+$binaryPath = $PSScriptRoot + "\..\" + "msvc\build\bin\srvany-ng\Debug Unicode_x64\srvany-ng_du64.exe"
+$testAppPath = $PSScriptRoot + "\..\" + "msvc\build\bin\testapp\Debug Unicode_x64\testapp_du64.exe"
 
 
 # Test data, the output directory (AppDirectory), parameters (AppParameters) and EnvVars (AppEnvironment).
