@@ -66,17 +66,17 @@ static void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
 {
     switch (CtrlCode)
     {
-    case SERVICE_CONTROL_STOP:
+    case SERVICE_CONTROL_STOP: // enabled by dwControlsAccepted=SERVICE_ACCEPT_STOP
         SetEvent(g_ServiceStopEvent); //Signal service stop
         TerminateProcess(g_Process.hProcess, 0); //Kill the target process.
         ServiceSetState(0, SERVICE_STOPPED, 0);
         break;
 
-    case SERVICE_CONTROL_PAUSE:
+    case SERVICE_CONTROL_PAUSE: // enabled by dwControlsAccepted=SERVICE_ACCEPT_PAUSE_CONTINUE
         ServiceSetState(0, SERVICE_PAUSED, 0);
         break;
 
-    case SERVICE_CONTROL_CONTINUE:
+    case SERVICE_CONTROL_CONTINUE: // enabled by dwControlsAccepted=SERVICE_ACCEPT_PAUSE_CONTINUE
         ServiceSetState(0, SERVICE_RUNNING, 0);
         break;
 
