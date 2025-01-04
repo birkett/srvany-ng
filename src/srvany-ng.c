@@ -34,6 +34,8 @@
 
 SERVICE_STATUS_HANDLE g_StatusHandle     = NULL;
 HANDLE                g_ServiceStopEvent = INVALID_HANDLE_VALUE;
+HANDLE                g_Job              = INVALID_HANDLE_VALUE;
+DWORD                 g_UseJob           = 0;
 PROCESS_INFORMATION   g_Process          = { 0 };
 
 
@@ -110,6 +112,11 @@ static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationEnv
     //Try to launch the target application.
     if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
     {
+        if (g_UseJob == 1)
+        {
+            AssignProcessToJobObject(g_Job, g_Process.hProcess);
+        }
+
         ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
 
         //Wait until the service has stopped, or the target application exits.
@@ -118,6 +125,11 @@ static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationEnv
         handles[1] = g_Process.hProcess;
 
         DWORD ret = WaitForMultipleObjects(sizeof(handles) / sizeof(handles[0]), handles, FALSE, INFINITE);
+        if (g_UseJob == 1)
+        {
+            TerminateJobObject(g_Job, 0);
+        }
+
         if (ret == WAIT_OBJECT_0 + 1) //g_Process.hProcess had index=1 in handles array
         {
             return EXIT_REASON_APPLICATION_EXITED;
@@ -229,6 +241,22 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
         restartOnExit = 0;
     }
 
+    //Create job to manage child process
+    cbData = sizeof(g_UseJob);
+    if (RegQueryValueEx(openedKey, TEXT("UseJobObject"), NULL, NULL, (LPBYTE)&g_UseJob, &cbData) != ERROR_SUCCESS)
+    {
+        g_UseJob = 0;
+    }
+    if (g_UseJob == 1)
+    {
+        if ((g_Job = CreateJobObject(NULL, NULL)) == INVALID_HANDLE_VALUE)
+        {
+            OutputDebugString(TEXT("Failed to create job\n"));
+            ServiceSetState(0, SERVICE_STOPPED, 0);
+            return;
+        }
+    }
+
     //Append parameters to the target command string.
     wsprintf(appStringWithParams, TEXT("%s %s"), applicationString, applicationParameters);
 
@@ -242,6 +270,10 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
         }
     }
 
+    if (g_UseJob == 1)
+    {
+        CloseHandle(g_Job);
+    }
     CloseHandle(g_ServiceStopEvent);
     ServiceSetState(0, SERVICE_STOPPED, 0);
 }//end ServiceMain()
