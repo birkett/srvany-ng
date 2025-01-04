@@ -53,10 +53,10 @@ New-Service -Name $serviceName -BinaryPathName $binaryPath
 # Create the registry keys and populate test data.
 Write-Host "Creating registry keys"
 New-Item -Path HKLM:\System\CurrentControlSet\Services\$serviceName -Name "Parameters" –Force | out-null
-New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\srvany-testapp\Parameters -Name "Application" -PropertyType String -Value $testAppPath | out-null
-New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\srvany-testapp\Parameters -Name "AppDirectory" -PropertyType String -Value $testAppOutput | out-null
-New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\srvany-testapp\Parameters -Name "AppParameters" -PropertyType String -Value $testAppParams | out-null
-New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\srvany-testapp\Parameters -Name "AppEnvironment" -PropertyType MultiString -Value $testAppEnv | out-null
+New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Parameters -Name "Application" -PropertyType String -Value $testAppPath | out-null
+New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Parameters -Name "AppDirectory" -PropertyType String -Value $testAppOutput | out-null
+New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Parameters -Name "AppParameters" -PropertyType String -Value $testAppParams | out-null
+New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Parameters -Name "AppEnvironment" -PropertyType MultiString -Value $testAppEnv | out-null
 
 # Start the service.
 Write-Host "Starting service $serviceName"
