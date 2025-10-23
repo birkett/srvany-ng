@@ -90,7 +90,7 @@ static void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
  * Create the child process, and return a value indicating why we are exiting.
  * We may re-spawn the process if we are set to restart on exit.
  */
-static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationEnvironment, TCHAR* applicationDirectory)
+static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationDirectory)
 {
     STARTUPINFO startupInfo;
     ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
@@ -108,7 +108,7 @@ static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationEnv
 #endif
 
     //Try to launch the target application.
-    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
+    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, NULL, applicationDirectory, &startupInfo, &g_Process))
     {
         ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
 
@@ -207,7 +207,8 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     cbData = MAX_DATA_LENGTH;
     if (RegQueryValueEx(openedKey, TEXT("AppEnvironment"), NULL, NULL, (LPBYTE)applicationEnvironment, &cbData) != ERROR_SUCCESS)
     {
-        applicationEnvironment = GetEnvironmentStrings(); //Default to the current environment.
+        free(applicationEnvironment);
+        applicationEnvironment = NULL;
     }
 
     //Get the target application directory from the Parameters key.
@@ -218,6 +219,7 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
         ZeroMemory(applicationDirectory, MAX_DATA_LENGTH * sizeof(TCHAR)); //Make sure RegQueryEx() didnt write garbage.
         if (GetCurrentDirectory(MAX_DATA_LENGTH, applicationDirectory) == 0)
         {
+            free(applicationDirectory);
             applicationDirectory = NULL; //All attempts failed, let CreateProcess() handle it.
         }
     }
@@ -229,16 +231,45 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
         restartOnExit = 0;
     }
 
+    //Modify current process' environment with AppEnvironment entries
+    if (applicationEnvironment != NULL)
+    {
+        TCHAR* defStart = applicationEnvironment;
+        while (*defStart != 0)
+        {
+            size_t defLength = _tcslen(defStart);
+            TCHAR* equalChr = _tcschr(defStart, TEXT('='));
+            if (equalChr != NULL)
+            {
+                TCHAR* defName  = defStart;
+                TCHAR* defValue = equalChr + 1;
+                *equalChr = 0;
+
+                if (SetEnvironmentVariable(defName, defValue) == FALSE)
+                {
+                    OutputDebugString(TEXT("SetEnvironmentVariable failed. Non fatal.\n"));
+                }
+            }
+            defStart += defLength + 1;
+            if (defStart >= applicationEnvironment + MAX_DATA_LENGTH)
+            {
+                break;
+            }
+        }
+        free(applicationEnvironment);
+        applicationEnvironment = NULL;
+    }
+
     //Append parameters to the target command string.
     wsprintf(appStringWithParams, TEXT("%s %s"), applicationString, applicationParameters);
 
-    DWORD exitReason = SpawnChildProcess(appStringWithParams, applicationEnvironment, applicationDirectory);
+    DWORD exitReason = SpawnChildProcess(appStringWithParams, applicationDirectory);
 
     if (restartOnExit == 1)
     {
         while (exitReason == EXIT_REASON_APPLICATION_EXITED) {
             Sleep(1000);
-            exitReason = SpawnChildProcess(appStringWithParams, applicationEnvironment, applicationDirectory);
+            exitReason = SpawnChildProcess(appStringWithParams, applicationDirectory);
         }
     }
 
