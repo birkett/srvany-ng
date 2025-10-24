@@ -14,6 +14,7 @@ Written in C, for Windows XP and newer.
 * Service will stop if the launched application exits
 * Added optional configuration to automatically restart the target application on exit
 * Application environment variables will inherit the global environment by default, see Application Environment below
+* Added optional configuration to allow terminating of sub processes spawned by the service
 
 ## Building
 Solution is known to build with Visual Studio 2022, no additional dependencies are needed. The project uses the "v141_xp" toolset to ensure XP / 2003 support, and links to the MSVCRT statically.
@@ -35,13 +36,14 @@ Create a new Key named "Parameters".
 In the parameters key, create a new String value named "Application". The value should be the file path to the application you wish to run as a service.
 
 #### Optional Parameters
-| Value name          | Value type         | Description                                                                                       |
-|---------------------|--------------------|---------------------------------------------------------------------------------------------------|
-| AppDirectory        | String value       | The starting directory for your application. Usually the same as the folder its executable is in. |
-| AppParameters       | String value       | Command line arguments to pass to your application on startup.                                    |
-| AppEnvironment      | Multi-String value | Environment variables to set for your application.                                                |
-| RestartOnExit       | DWORD value        | If set to 1, and the application exits, srvany-ng will automatically restart it.                  |
-| OverrideEnvironment | DWORD value        | Default 0, if set to 1 will enable the original srvany environment behaviour described below      | 
+| Value name            | Value type         | Description                                                                                       |
+|-----------------------|--------------------|---------------------------------------------------------------------------------------------------|
+| AppDirectory          | String value       | The starting directory for your application. Usually the same as the folder its executable is in. |
+| AppParameters         | String value       | Command line arguments to pass to your application on startup.                                    |
+| AppEnvironment        | Multi-String value | Environment variables to set for your application.                                                |
+| RestartOnExit         | DWORD value        | If set to 1, and the application exits, srvany-ng will automatically restart it.                  |
+| OverrideEnvironment   | DWORD value        | Default 0, if set to 1 will enable the original srvany environment behaviour described below      |
+| TerminateSubProcesses | DWORD value        | If set to 1, will use a JobObject to terminate sub processes spawned by the service               |
 
 ## Application Environment
 The original `srvany` will overwrite the global environment variables if `AppEnvironment` is configured. If `AppEnvironment` is not configured, the default global environment would be
