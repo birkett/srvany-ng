@@ -264,7 +264,7 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
 
     //Create job to manage child process
     cbData = sizeof(g_UseJob);
-    if (RegQueryValueEx(openedKey, TEXT("UseJobObject"), NULL, NULL, (LPBYTE)&g_UseJob, &cbData) != ERROR_SUCCESS)
+    if (RegQueryValueEx(openedKey, TEXT("TerminateSubProcesses"), NULL, NULL, (LPBYTE)&g_UseJob, &cbData) != ERROR_SUCCESS)
     {
         g_UseJob = 0;
     }
