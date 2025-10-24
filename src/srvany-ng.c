@@ -58,6 +58,16 @@ static void ServiceSetState(DWORD acceptedControls, DWORD newState, DWORD exitCo
     {
         OutputDebugString(TEXT("SetServiceStatus() failed\n"));
     }
+
+    if (newState == SERVICE_STOPPED)
+    {
+        if (g_UseJob == 1)
+        {
+            CloseHandle(g_Job);
+        }
+
+        CloseHandle(g_ServiceStopEvent);
+    }
 }//end ServiceSetState()
 
 
@@ -125,6 +135,7 @@ static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationEnv
         handles[1] = g_Process.hProcess;
 
         DWORD ret = WaitForMultipleObjects(sizeof(handles) / sizeof(handles[0]), handles, FALSE, INFINITE);
+
         if (g_UseJob == 1)
         {
             TerminateJobObject(g_Job, 0);
@@ -257,6 +268,7 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     {
         g_UseJob = 0;
     }
+
     if (g_UseJob == 1)
     {
         if ((g_Job = CreateJobObject(NULL, NULL)) == INVALID_HANDLE_VALUE)
@@ -309,11 +321,6 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
         }
     }
 
-    if (g_UseJob == 1)
-    {
-        CloseHandle(g_Job);
-    }
-    CloseHandle(g_ServiceStopEvent);
     ServiceSetState(0, SERVICE_STOPPED, 0);
 }//end ServiceMain()
 
