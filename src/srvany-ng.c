@@ -90,7 +90,7 @@ static void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
  * Create the child process, and return a value indicating why we are exiting.
  * We may re-spawn the process if we are set to restart on exit.
  */
-static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationDirectory)
+static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationEnvironment, TCHAR* applicationDirectory)
 {
     STARTUPINFO startupInfo;
     ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
@@ -108,7 +108,7 @@ static DWORD SpawnChildProcess(TCHAR* appStringWithParams, TCHAR* applicationDir
 #endif
 
     //Try to launch the target application.
-    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, NULL, applicationDirectory, &startupInfo, &g_Process))
+    if (CreateProcess(NULL, appStringWithParams, NULL, NULL, FALSE, dwFlags, applicationEnvironment, applicationDirectory, &startupInfo, &g_Process))
     {
         ServiceSetState(SERVICE_ACCEPT_STOP, SERVICE_RUNNING, 0);
 
@@ -149,6 +149,7 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     TCHAR* applicationParameters  = (TCHAR*)calloc(MAX_DATA_LENGTH    , sizeof(TCHAR));
     TCHAR* applicationEnvironment = (TCHAR*)calloc(MAX_DATA_LENGTH    , sizeof(TCHAR));
     TCHAR* appStringWithParams    = (TCHAR*)calloc(MAX_DATA_LENGTH * 2, sizeof(TCHAR));
+    DWORD  overrideEnvironment = 0;
     DWORD  restartOnExit = 0;
     HKEY   openedKey;
     DWORD  cbData;
@@ -203,6 +204,13 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
         OutputDebugString(TEXT("AppParameters key not found. Non fatal.\n"));
     }
 
+    //Get the target application environment override behaviour from the Parameters key.
+    cbData = sizeof(overrideEnvironment);
+    if (RegQueryValueEx(openedKey, TEXT("OverrideEnvironment"), NULL, NULL, (LPBYTE)&overrideEnvironment, &cbData) != ERROR_SUCCESS)
+    {
+        overrideEnvironment = 0;
+    }
+
     //Get the target application environment from the Parameters key.
     cbData = MAX_DATA_LENGTH;
     if (RegQueryValueEx(openedKey, TEXT("AppEnvironment"), NULL, NULL, (LPBYTE)applicationEnvironment, &cbData) != ERROR_SUCCESS)
@@ -232,7 +240,7 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     }
 
     //Modify current process' environment with AppEnvironment entries
-    if (applicationEnvironment != NULL)
+    if (applicationEnvironment != NULL && overrideEnvironment == 0)
     {
         TCHAR* defStart = applicationEnvironment;
         while (*defStart != 0)
@@ -263,13 +271,13 @@ static void WINAPI ServiceMain(DWORD argc, TCHAR *argv[])
     //Append parameters to the target command string.
     wsprintf(appStringWithParams, TEXT("%s %s"), applicationString, applicationParameters);
 
-    DWORD exitReason = SpawnChildProcess(appStringWithParams, applicationDirectory);
+    DWORD exitReason = SpawnChildProcess(appStringWithParams, applicationEnvironment, applicationDirectory);
 
     if (restartOnExit == 1)
     {
         while (exitReason == EXIT_REASON_APPLICATION_EXITED) {
             Sleep(1000);
-            exitReason = SpawnChildProcess(appStringWithParams, applicationDirectory);
+            exitReason = SpawnChildProcess(appStringWithParams, applicationEnvironment, applicationDirectory);
         }
     }
 

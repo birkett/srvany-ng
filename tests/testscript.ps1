@@ -45,6 +45,7 @@ $serviceName = "srvany-testapp"
 $testAppOutput = $PSScriptRoot + "\..\" + "tests\"
 $testAppParams = "-someparam -another param2"
 $testAppEnv = "SOMEENVAR=SOMEVALUE", "ANOTHERVAR=VALUE2"
+$overrideEnvironment = 1
 
 # Create the service.
 Write-Host "Creating service $serviceName"
@@ -57,6 +58,7 @@ New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Para
 New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Parameters -Name "AppDirectory" -PropertyType String -Value $testAppOutput | out-null
 New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Parameters -Name "AppParameters" -PropertyType String -Value $testAppParams | out-null
 New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Parameters -Name "AppEnvironment" -PropertyType MultiString -Value $testAppEnv | out-null
+New-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\$serviceName\Parameters -Name "OverrideEnvironment" -PropertyType Dword -Value $overrideEnvironment | out-null
 
 # Start the service.
 Write-Host "Starting service $serviceName"
