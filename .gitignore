@@ -7,4 +7,4 @@ msvc/.vs/
 msvc/build/
 src/*.aps
 src/gitversion.h
-output.txt
+tests/*.txt
